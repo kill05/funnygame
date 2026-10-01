@@ -4,7 +4,7 @@ import com.github.kill05.funnygame.Player;
 import com.github.kill05.funnygame.connection.PlayerConnection;
 import com.github.kill05.funnygame.commands.CommandSender;
 import com.github.kill05.funnygame.server.Server;
-import com.github.kill05.funnygame.server.ServerConnection;
+import com.github.kill05.funnygame.server.connection.ServerConnection;
 import com.github.kill05.funnygame.server.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 

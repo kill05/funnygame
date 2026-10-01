@@ -1,4 +1,4 @@
-package com.github.kill05.funnygame.server;
+package com.github.kill05.funnygame.server.connection;
 
 import com.github.kill05.funnygame.Player;
 import com.github.kill05.funnygame.connection.ConnectionConstants;
@@ -7,6 +7,8 @@ import com.github.kill05.funnygame.connection.PlayerConnection;
 import com.github.kill05.funnygame.packet.ConnectionAcceptedPacket;
 import com.github.kill05.funnygame.packet.ConnectionRequestPacket;
 import com.github.kill05.funnygame.packet.DisconnectPacket;
+import com.github.kill05.funnygame.server.Server;
+import com.github.kill05.funnygame.server.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Blocking;
 import org.jetbrains.annotations.NotNull;

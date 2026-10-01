@@ -1,4 +1,4 @@
-package com.github.kill05.funnygame.server;
+package com.github.kill05.funnygame.server.connection;
 
 import com.github.kill05.funnygame.Player;
 import com.github.kill05.funnygame.component.Component;

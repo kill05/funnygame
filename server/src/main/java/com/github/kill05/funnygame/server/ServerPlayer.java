@@ -4,6 +4,7 @@ import com.github.kill05.funnygame.Player;
 import com.github.kill05.funnygame.commands.CommandSender;
 import com.github.kill05.funnygame.component.Component;
 import com.github.kill05.funnygame.packet.ServerChatMessagePacket;
+import com.github.kill05.funnygame.server.connection.ServerPlayerConnection;
 import org.incendo.cloud.CommandManager;
 import org.jetbrains.annotations.NotNull;
 

@@ -8,6 +8,7 @@ import com.github.kill05.funnygame.commands.GameCommandManager;
 import com.github.kill05.funnygame.component.Component;
 import com.github.kill05.funnygame.server.commands.ListCommand;
 import com.github.kill05.funnygame.server.commands.StopCommand;
+import com.github.kill05.funnygame.server.connection.ServerConnection;
 import org.incendo.cloud.CommandManager;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
