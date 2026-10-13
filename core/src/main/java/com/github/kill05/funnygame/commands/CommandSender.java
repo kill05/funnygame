@@ -22,6 +22,8 @@ public interface CommandSender {
      */
     void sendMessage(@NotNull Component message);
 
+    boolean hasPermission(@NotNull String permission);
+
     CommandManager<CommandSender> getCommandManager();
 
     default void executeCommand(@NotNull String input) {

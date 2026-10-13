@@ -1,14 +1,15 @@
 package com.github.kill05.funnygame.client;
 
 import com.github.kill05.funnygame.GameConstants;
-import com.github.kill05.funnygame.Ticker;
 import com.github.kill05.funnygame.component.Component;
 import com.github.kill05.funnygame.connection.NioEventLoop;
 import com.github.kill05.funnygame.connection.PlayerConnection;
 import com.github.kill05.funnygame.packet.DisconnectPacket;
+import com.github.kill05.funnygame.scheduler.GameScheduler;
 import org.jetbrains.annotations.Blocking;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jline.utils.NonBlockingReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,58 +17,37 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnresolvedAddressException;
-import java.util.Scanner;
 import java.util.concurrent.ThreadLocalRandom;
+
+import static com.github.kill05.funnygame.component.Component.text;
+import static com.github.kill05.funnygame.component.TextColor.RED;
 
 public class Client {
 
     private static final Logger log = LoggerFactory.getLogger(Client.class);
 
-
-    public static void sendMessage(@NotNull Component component) {
-        sendMessage(component.toConsoleString());
-    }
-
-    public static void sendMessage(@NotNull String message) {
-        System.out.println(message);
-    }
-
-
     private final NioEventLoop eventLoop;
-    private final Ticker ticker;
-    private final Scanner scanner;
+    private final GameScheduler scheduler;
+    private final ClientTerminal terminal;
     private ClientPlayer player;
-    private final Thread consoleReaderThread;
     private volatile boolean running;
-    private volatile boolean pending;
+    private volatile boolean joining; // true when socket connected but waiting for ConnectionAcceptedPacket
+
 
     public Client() throws IOException {
         this.player = null;
-        this.pending = false;
+        this.joining = false;
         this.eventLoop = new NioEventLoop();
-        this.ticker = new Ticker(GameConstants.TARGET_TPS, this::tick);
-        this.scanner = new Scanner(System.in);
-
-        this.consoleReaderThread = Thread.ofVirtual().unstarted(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                String input = scanner.nextLine();
-
-                synchronized (Client.this) {
-                    if (player == null) {
-                        continue;
-                    }
-
-                    player.onChatMessageSent(input);
-                }
-            }
-        });
+        this.scheduler = new GameScheduler(GameConstants.TARGET_TPS, this::tick);
+        this.terminal = new ClientTerminal(this);
     }
 
 
     public void start() {
         synchronized (this) {
             eventLoop.start();
-            ticker.start();
+            scheduler.start();
+            terminal.start();
 
             running = true;
         }
@@ -76,21 +56,54 @@ public class Client {
     }
 
     public synchronized void stop() {
+        if (!running) {
+            throw new IllegalStateException("Client is not running!");
+        }
+
         running = false;
 
         try {
+            terminal.close();
             eventLoop.close();
-            ticker.close();
+            scheduler.close();
         } catch (IOException e) {
             log.error("Failed to close client.", e);
         }
 
-        sendMessage("Client closed.");
+        // Cannot use sendMessage as terminal is closed
+        System.out.println("Client closed.");
+    }
+
+    private synchronized void tick() {
+        if (player == null) {
+            return;
+        }
+
+        try {
+            NonBlockingReader reader = terminal.getTerminal().reader();
+            int read;
+
+            if (!terminal.isRequestingInput()
+                    && reader.available() > 0
+                    && (read = reader.read()) >= 0
+            ) {
+                char c = (char) read;
+                player.onKeyPressed(c);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            player.getConnection().tick();
+        } catch (IOException e) {
+            log.warn("Failed to process incoming packets.", e);
+        }
     }
 
 
     private void promptConnect() {
-        while (true) {
+        while (running) {
             InetSocketAddress address = requestAddressOrExit();
             if (address == null) {
                 return; // Client is stopping
@@ -100,8 +113,10 @@ public class Client {
                 String username = "player" + ThreadLocalRandom.current().nextInt(1000);
                 connect(username, address);
                 break;
-            } catch (IOException | UnresolvedAddressException e) {
-                Client.sendMessage("Failed to connect to server: " + e.getMessage());
+            } catch (UnresolvedAddressException e) {
+                sendMessage(text("Failed to connect to server: Unknown hostname.", RED));
+            } catch (IOException e) {
+                sendMessage(text("Failed to connect to server: " + e.getMessage(), RED));
             }
         }
     }
@@ -112,8 +127,12 @@ public class Client {
         InetSocketAddress address = null;
 
         while (address == null) {
-            Client.sendMessage("Insert server address (or type '/exit' to exit):");
-            String next = scanner.nextLine();
+            sendMessage("Insert server address (or type '/exit' to exit):");
+            String next = terminal.requestInputAndWait();
+
+            if (next.isEmpty() && !running) {
+                return null;
+            }
 
             if ("/exit".equals(next)) {
                 stop();
@@ -123,7 +142,7 @@ public class Client {
             try {
                 address = AddressUtils.addressFromString(next);
             } catch (IllegalArgumentException e) {
-                Client.sendMessage(e.getMessage() + " Please try again.");
+                sendMessage(text(e.getMessage() + " Please try again.", RED));
             }
         }
 
@@ -157,7 +176,9 @@ public class Client {
         // Create player connection and send connection request
         ClientPlayerConnection connection = new ClientPlayerConnection(this, socket);
         this.player = new ClientPlayer(this, username, connection);
-        this.pending = true;
+        this.joining = true;
+
+        sendMessage("Joining server...");
 
         eventLoop.addConnection(connection);
         connection.sendConnectionRequest(username);
@@ -166,15 +187,32 @@ public class Client {
     public synchronized void onConnectionAccepted() {
         checkRunning();
 
-        if (!pending) {
+        if (!joining) {
             log.warn("Received ConnectionAcceptedPacket while connection was not pending.");
             disconnect("Received illegal packet.", true);
             return;
         }
 
-        this.pending = false;
-        this.consoleReaderThread.start();
-        sendMessage("Connected.");
+        this.joining = false;
+
+        // Send connected message and update status message
+        try {
+            InetSocketAddress remoteAddress = (InetSocketAddress) player.getConnection().getChannel().getRemoteAddress();
+            sendMessage("Connected to " + remoteAddress.getHostName());
+            terminal.updateStatusMessage();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        startHandlingInput();
+    }
+
+    private void startHandlingInput() {
+        terminal.requestInput().thenAccept(input -> {
+            player.onChatMessageSent(input);
+            terminal.updateStatusMessage();
+            startHandlingInput();
+        });
     }
 
     /**
@@ -184,55 +222,80 @@ public class Client {
      *
      * @param message the message
      */
-    public synchronized void disconnect(@Nullable String message, boolean sendPacket) {
-        checkRunning();
+    public void disconnect(@Nullable String message, boolean sendPacket) {
+        synchronized (this) {
+            checkRunning();
 
-        if (player == null) {
-            throw new IllegalStateException("The client is not connected to a server.");
-        }
+            if (!isConnected()) {
+                return; // Disconnect can be called twice in some cases
+            }
 
-        this.consoleReaderThread.interrupt();
-        PlayerConnection connection = player.getConnection();
+            PlayerConnection connection = player.getConnection();
 
-        if (sendPacket) {
-            // Message sent from the client is ignored by the server
-            connection.sendPacket(new DisconnectPacket((String) null));
-        }
+            if (sendPacket) {
+                // Message sent from the client is ignored by the server
+                connection.sendPacket(new DisconnectPacket((String) null));
+            }
 
-        try {
-            connection.writeSocket(); // Flush before closing
-            connection.getChannel().close();
-        } catch (IOException e) {
-            log.warn("Failed to disconnect from the server.", e);
-        }
+            try {
+                connection.writeSocket(); // Flush before closing
+                connection.getChannel().close();
+            } catch (IOException e) {
+                log.warn("Failed to disconnect from the server.", e);
+            }
 
-        this.player = null;
+            this.player = null;
 
-        if (message != null) {
-            sendMessage("Disconnected from server: " + message);
-        } else {
-            sendMessage("Disconnected from server.");
+            if (message != null) {
+                sendMessage("Disconnected from server: " + message);
+            } else {
+                sendMessage("Disconnected from server.");
+            }
         }
 
         promptConnect();
     }
 
-    private synchronized void tick() {
-        if (player == null) {
-            return;
-        }
 
-        try {
-            player.getConnection().tick();
-        } catch (IOException e) {
-            log.warn("Failed to process incoming packets.", e);
-        }
+    public void sendMessage(@NotNull Component message) {
+        terminal.sendMessage(message);
+    }
+
+    public void sendMessage(@NotNull String message) {
+        terminal.sendMessage(message);
     }
 
 
+    /**
+     * Returns {@code true} if the client is currently connected to a server,
+     * i.e. the connection has been established and the client has received
+     * a {@link com.github.kill05.funnygame.packet.ConnectionAcceptedPacket}.
+     *
+     * @return {@code true} if connected
+     */
+    public synchronized boolean isConnected() {
+        return player != null && !joining;
+    }
+
+    public synchronized ClientStatus getStatus() {
+        if (!running) {
+            return ClientStatus.NOT_RUNNING;
+        }
+
+        if (isConnected()) {
+            return ClientStatus.CONNECTED;
+        }
+
+        if (joining) {
+            return ClientStatus.JOINING;
+        }
+
+        return ClientStatus.NOT_CONNECTED;
+    }
+
     @NotNull
     public synchronized ClientPlayer getPlayer() {
-        if (player == null) {
+        if (!isConnected()) {
             throw new IllegalStateException("Not connected to a server.");
         }
 

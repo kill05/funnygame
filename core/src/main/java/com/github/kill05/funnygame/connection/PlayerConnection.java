@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -25,7 +26,6 @@ public abstract class PlayerConnection {
     protected final SocketChannel channel;
     private final Queue<Packet> packetInQueue;
     private final Queue<Packet> packetOutQueue;
-    private final ByteArrayOutputStream inBuffer;
     private final ByteBuffer buf;
     private volatile long lastKeepAliveSent;
     private volatile long lastKeepAliveReceived;
@@ -34,7 +34,6 @@ public abstract class PlayerConnection {
         this.channel = channel;
         this.packetInQueue = new ArrayBlockingQueue<>(PACKET_BUFFER_SIZE);
         this.packetOutQueue = new ArrayBlockingQueue<>(PACKET_BUFFER_SIZE);
-        this.inBuffer = new ByteArrayOutputStream(256);
         this.buf = ByteBuffer.allocate(1024);
         this.lastKeepAliveReceived = System.currentTimeMillis();
     }
@@ -146,7 +145,13 @@ public abstract class PlayerConnection {
         byte[] packetData = out.toByteArray();
         ByteBuffer buf = ByteBuffer.wrap(packetData);
 
-        int wroteAmount = channel.write(buf);
+        int wroteAmount;
+        try {
+            wroteAmount = channel.write(buf);
+        } catch (ClosedChannelException e) {
+            disconnect("Channel closed.");
+            return;
+        }
 
         // todo: better full buffer handling
         if (wroteAmount != packetData.length) {
@@ -174,38 +179,34 @@ public abstract class PlayerConnection {
 
     // Only called when there is data in the socket to read
     public void readSocket() throws IOException {
-        byte[] data;
+        boolean keepReading = true;
+        ByteArrayOutputStream inBuffer = new ByteArrayOutputStream();
 
-        synchronized (inBuffer) {
-            boolean keepReading = true;
-            while (keepReading) {
-                buf.clear();
+        while (keepReading) {
+            buf.clear();
 
-                int read;
-                try {
-                    read = channel.read(buf);
-                } catch (SocketException e) {
-                    disconnect(e.getMessage(), false);
-                    return;
-                }
-
-                if (read < 0) {
-                    // End of stream
-                    disconnect("Connection closed.", false);
-                    return;
-                }
-
-                if (read < buf.capacity()) {
-                    keepReading = false;
-                }
-
-                inBuffer.write(buf.array(), 0, buf.position());
+            int read;
+            try {
+                read = channel.read(buf);
+            } catch (SocketException e) {
+                disconnect(e.getMessage(), false);
+                return;
             }
 
-            data = inBuffer.toByteArray();
-            inBuffer.reset();
+            if (read < 0) {
+                // End of stream
+                disconnect("Connection closed", false);
+                return;
+            }
+
+            if (read < buf.capacity()) {
+                keepReading = false;
+            }
+
+            inBuffer.write(buf.array(), 0, buf.position());
         }
 
+        byte[] data = inBuffer.toByteArray();
         PacketInputStream in = new PacketInputStream(new ByteArrayInputStream(data));
 
         synchronized (packetInQueue) {

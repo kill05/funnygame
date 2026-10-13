@@ -22,10 +22,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.github.kill05.funnygame.connection.ConnectionConstants.PROTOCOL_VERSION;
@@ -149,7 +146,7 @@ public class ServerConnection implements Closeable {
         }
 
         connection.sendPacket(new ConnectionAcceptedPacket());
-        player.onJoin(); // todo: make this call synchronous with the ticking thread once i introduce task scheduling
+        server.getScheduler().run(player::onJoin);
     }
 
 
@@ -176,7 +173,7 @@ public class ServerConnection implements Closeable {
 
         if (player != null) {
             log.info("{} disconnected: {}", player.getUsername(), message);
-            player.onLeave();
+            server.getScheduler().run(player::onLeave);
         }
     }
 
@@ -199,10 +196,20 @@ public class ServerConnection implements Closeable {
     }
 
     @Nullable
-    public Player getOnlinePlayer(@NotNull String username) {
-        for (Player player : players.values()) {
-            String name = player.getUsername();
-            if (username.equals(name)) {
+    public ServerPlayer getOnlinePlayer(@NotNull String username) {
+        for (ServerPlayer player : players.values()) {
+            if (username.equals(player.getUsername())) {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
+    @Nullable
+    public ServerPlayer getOnlinePlayer(@NotNull UUID uuid) {
+        for (ServerPlayer player : players.values()) {
+            if (uuid.equals(player.getUuid())) {
                 return player;
             }
         }

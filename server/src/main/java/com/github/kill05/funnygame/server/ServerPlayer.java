@@ -33,6 +33,11 @@ public class ServerPlayer extends Player {
     }
 
     @Override
+    public boolean hasPermission(@NotNull String permission) {
+        return true; // todo: manage permission
+    }
+
+    @Override
     public CommandManager<CommandSender> getCommandManager() {
         return server.getCommandManager();
     }

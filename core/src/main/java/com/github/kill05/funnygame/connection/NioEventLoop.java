@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -44,11 +45,12 @@ public class NioEventLoop implements Closeable {
                 continue;
             }
 
-            if (!selector.isOpen()) {
-                return;
+            Iterator<SelectionKey> iterator;
+            try {
+                iterator = selector.selectedKeys().iterator();
+            } catch (ClosedSelectorException e) {
+                return; // Event loop has been closed
             }
-
-            Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
 
             while (iterator.hasNext()) {
                 SelectionKey key = iterator.next();

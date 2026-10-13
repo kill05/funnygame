@@ -36,17 +36,17 @@ public sealed interface Component permits TextComponent {
         return new TextComponent(text);
     }
 
-    static TextComponent text(@NotNull String text, @NotNull TextColor textColor) {
+    static TextComponent text(@NotNull String text, @Nullable TextColor textColor) {
         return new TextComponent(text, textColor, null, Map.of(), List.of());
     }
 
-    static TextComponent text(@NotNull String text, @NotNull TextColor textColor, @NotNull Decoration... decorations) {
+    static TextComponent text(@NotNull String text, @Nullable TextColor textColor, @NotNull Decoration... decorations) {
         Map<Decoration, Boolean> map = createDecorationMap(decorations);
 
         return new TextComponent(text, textColor, null, map, List.of());
     }
 
-    static TextComponent text(@NotNull String text, @NotNull TextColor textColor, @NotNull TextColor backgroundColor) {
+    static TextComponent text(@NotNull String text, @Nullable TextColor textColor, @Nullable TextColor backgroundColor) {
         return new TextComponent(text, textColor, backgroundColor, Map.of(), List.of());
     }
 
@@ -80,7 +80,6 @@ public sealed interface Component permits TextComponent {
 
     @NotNull
     Component decorate(@NotNull Decoration... decorations);
-// <3
 
     @NotNull
     Component decorateIfAbsent(@NotNull Decoration... decorations);
@@ -92,18 +91,19 @@ public sealed interface Component permits TextComponent {
     @NotNull
     Map<Decoration, Boolean> decorations();
 
+    @Nullable
+    TextColor textColor();
+
+    @Nullable
+    TextColor backgroundColor();
+
+
     @NotNull
     default Component append(@NotNull String text) {
         return append(text(text));
     }
 
-
-    /**
-     * Transforms this component into a string with ANSI codes
-     * that can be sent to the console.
-     *
-     * @return the string
-     */
-    @NotNull
-    String toConsoleString();
+    default String toAnsi() {
+        return ComponentSerializer.toAnsi(this);
+    }
 }

@@ -12,6 +12,10 @@ public class AddressUtils {
         String hostname;
         int port;
 
+        if (address.isEmpty()) {
+            throw new IllegalArgumentException("No address provided.");
+        }
+
         String[] split = address.split(":");
 
         if (split.length > 2) {

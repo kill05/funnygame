@@ -74,7 +74,7 @@ public class ClientPlayerConnection extends PlayerConnection {
 
     @Override
     public void handleServerChatMessagePacket(@NotNull ServerChatMessagePacket packet) {
-        Client.sendMessage(packet.message());
+        client.sendMessage(packet.message());
     }
 
     @Override

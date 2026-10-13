@@ -1,6 +1,5 @@
 package com.github.kill05.funnygame.component;
 
-import com.github.kill05.funnygame.Ansi;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -64,47 +63,4 @@ public record TextComponent(
         return new TextComponent(text, textColor, backgroundColor, decorations, Collections.unmodifiableList(list));
     }
 
-    @Override
-    public @NotNull String toConsoleString() {
-        StringBuilder builder = new StringBuilder();
-
-        toConsoleString(builder);
-        builder.append(Ansi.RESET);
-
-        return builder.toString();
-    }
-
-    private void toConsoleString(@NotNull StringBuilder builder) {
-        // Decoration
-        for (Map.Entry<Decoration, Boolean> entry : decorations.entrySet()) {
-            Decoration decoration = entry.getKey();
-            Boolean state = entry.getValue();
-
-            if (state == null) {
-                continue;
-            }
-
-            if (state) {
-                builder.append(decoration.ansi());
-            } else {
-                builder.append(decoration.resetAnsi());
-            }
-        }
-
-        // Color
-        if (textColor != null) {
-            builder.append(textColor.textAnsi());
-        }
-
-        if (backgroundColor != null) {
-            builder.append(backgroundColor.backgroundAnsi());
-        }
-
-        // Text and children text
-        builder.append(text);
-
-        for (Component child : children) {
-            builder.append(child.toConsoleString());
-        }
-    }
 }

@@ -1,6 +1,5 @@
-package com.github.kill05.funnygame;
+package com.github.kill05.funnygame.client;
 
-import com.github.kill05.funnygame.client.Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

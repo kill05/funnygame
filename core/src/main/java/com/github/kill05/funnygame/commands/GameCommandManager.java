@@ -1,19 +1,69 @@
 package com.github.kill05.funnygame.commands;
 
+import com.github.kill05.funnygame.component.TextColor;
+import com.github.kill05.funnygame.scheduler.GameScheduler;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.caption.Caption;
+import org.incendo.cloud.caption.CaptionVariable;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.exception.NoSuchCommandException;
+import org.incendo.cloud.exception.handling.ExceptionController;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.internal.CommandRegistrationHandler;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+
+import static com.github.kill05.funnygame.component.Component.text;
 
 public class GameCommandManager extends CommandManager<CommandSender> {
 
-    public GameCommandManager() {
+    private static final Logger log = LoggerFactory.getLogger(GameCommandManager.class);
+
+    public GameCommandManager(GameScheduler scheduler) {
         super(ExecutionCoordinator.simpleCoordinator(), CommandRegistrationHandler.nullCommandRegistrationHandler());
+        registerExceptionHandlers();
+    }
+
+    private static @NotNull ExecutionCoordinator<CommandSender> createCoordinator(GameScheduler scheduler) {
+        return ExecutionCoordinator.<CommandSender>builder()
+                .executor(scheduler)
+                .build();
+    }
+
+    private void registerExceptionHandlers() {
+        ExceptionController<CommandSender> controller = exceptionController();
+
+        registerDefaultExceptionHandlers(
+                triplet -> {
+                    CommandContext<CommandSender> context = triplet.first();
+                    Caption caption = triplet.second();
+                    List<CaptionVariable> variables = triplet.third();
+
+                    String message = context.formatCaption(caption, variables);
+                    context.sender().sendMessage(message);
+                },
+                pair -> {
+                    String message = pair.first();
+                    Throwable error = pair.second();
+                    log.warn("Failed to execute command: {}", message, error);
+                });
+
+        controller.registerHandler(NoSuchCommandException.class, ectx -> {
+            CommandContext<CommandSender> ctx = ectx.context();
+
+            ctx.sender().sendMessage(text().append(
+                    text("Unknown command: ", TextColor.RED),
+                    text(ectx.exception().suppliedCommand())
+            ).build());
+        });
     }
 
     @Override
     public boolean hasPermission(@NotNull CommandSender sender, @NonNull String permission) {
-        return true;
+        return sender.hasPermission(permission);
     }
 }
