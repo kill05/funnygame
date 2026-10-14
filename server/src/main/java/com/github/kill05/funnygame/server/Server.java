@@ -34,6 +34,14 @@ public class Server {
         this.terminal = new ServerTerminal(this);
         this.running = false;
         this.stop = false;
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (!running) {
+                return;
+            }
+
+            doStop();
+        }));
     }
 
     public synchronized void start() {
@@ -68,6 +76,7 @@ public class Server {
 
     private synchronized void doStop() {
         checkRunning();
+        this.stop = true;
         this.running = false;
 
         try {

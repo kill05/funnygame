@@ -2,17 +2,20 @@ package com.github.kill05.funnygame.scheduler;
 
 public interface ScheduledTask {
 
-    GameScheduler scheduler();
-
     Runnable runnable();
 
     boolean shouldRun(long currentTick);
 
     boolean shouldStop(long currentTick);
 
-    default void cancel() {
-        scheduler().cancel(this);
-    }
+    /**
+     * Cancels this task. Returns {@code true} if the task was canceled
+     * or {@code false} if the task has already been canceled.
+     *
+     * @return {@code true} if canceled
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    boolean cancel();
 
 }
 

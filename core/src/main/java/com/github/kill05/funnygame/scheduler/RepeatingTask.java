@@ -1,22 +1,16 @@
 package com.github.kill05.funnygame.scheduler;
 
-public class RepeatingTask implements ScheduledTask {
+public class RepeatingTask extends AbstractTask {
 
-    protected final GameScheduler scheduler;
     protected final Runnable runnable;
     protected final long startTick;
     protected final long period;
 
     public RepeatingTask(GameScheduler scheduler, Runnable runnable, long startTick, long period) {
-        this.scheduler = scheduler;
+        super(scheduler);
         this.runnable = runnable;
         this.startTick = startTick;
         this.period = period;
-    }
-
-    @Override
-    public GameScheduler scheduler() {
-        return null;
     }
 
     @Override
@@ -32,14 +26,6 @@ public class RepeatingTask implements ScheduledTask {
     @Override
     public boolean shouldStop(long currentTick) {
         return false;
-    }
-
-    public long startTick() {
-        return startTick;
-    }
-
-    public long period() {
-        return period;
     }
 
 }

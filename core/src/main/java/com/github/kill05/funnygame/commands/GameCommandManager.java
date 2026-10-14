@@ -24,7 +24,7 @@ public class GameCommandManager extends CommandManager<CommandSender> {
     private static final Logger log = LoggerFactory.getLogger(GameCommandManager.class);
 
     public GameCommandManager(GameScheduler scheduler) {
-        super(ExecutionCoordinator.simpleCoordinator(), CommandRegistrationHandler.nullCommandRegistrationHandler());
+        super(createCoordinator(scheduler), CommandRegistrationHandler.nullCommandRegistrationHandler());
         registerExceptionHandlers();
     }
 
