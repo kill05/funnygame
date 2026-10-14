@@ -1,11 +1,14 @@
 package com.github.kill05.funnygame.client;
 
 import com.github.kill05.funnygame.GameConstants;
+import com.github.kill05.funnygame.commands.CommandSender;
+import com.github.kill05.funnygame.commands.GameCommandManager;
 import com.github.kill05.funnygame.component.Component;
 import com.github.kill05.funnygame.connection.NioEventLoop;
 import com.github.kill05.funnygame.connection.PlayerConnection;
 import com.github.kill05.funnygame.packet.DisconnectPacket;
 import com.github.kill05.funnygame.scheduler.GameScheduler;
+import org.incendo.cloud.CommandManager;
 import org.jetbrains.annotations.Blocking;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,6 +31,7 @@ public class Client {
 
     private final NioEventLoop eventLoop;
     private final GameScheduler scheduler;
+    private final CommandManager<CommandSender> commandManager;
     private final ClientTerminal terminal;
     private ClientPlayer player;
     private volatile boolean running;
@@ -39,6 +43,7 @@ public class Client {
         this.joining = false;
         this.eventLoop = new NioEventLoop();
         this.scheduler = new GameScheduler(GameConstants.TARGET_TPS, this::tick);
+        this.commandManager = new GameCommandManager(scheduler);
         this.terminal = new ClientTerminal(this);
     }
 
@@ -304,5 +309,13 @@ public class Client {
 
     public NioEventLoop getEventLoop() {
         return eventLoop;
+    }
+
+    public GameScheduler getScheduler() {
+        return scheduler;
+    }
+
+    public CommandManager<CommandSender> getCommandManager() {
+        return commandManager;
     }
 }

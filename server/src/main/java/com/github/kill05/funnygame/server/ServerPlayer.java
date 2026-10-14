@@ -38,8 +38,14 @@ public class ServerPlayer extends Player {
     }
 
     @Override
-    public CommandManager<CommandSender> getCommandManager() {
-        return server.getCommandManager();
+    public void executeCommand(@NotNull String input) {
+        if (input.startsWith("/")) {
+            input = input.substring(1);
+        }
+
+        CommandManager<CommandSender> manager = server.getCommandManager();
+        manager.commandExecutor().executeCommand(this, input);
+
     }
 
     public Server getServer() {

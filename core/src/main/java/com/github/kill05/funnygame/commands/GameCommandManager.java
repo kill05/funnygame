@@ -28,7 +28,7 @@ public class GameCommandManager extends CommandManager<CommandSender> {
         registerExceptionHandlers();
     }
 
-    private static @NotNull ExecutionCoordinator<CommandSender> createCoordinator(GameScheduler scheduler) {
+    private static ExecutionCoordinator<CommandSender> createCoordinator(GameScheduler scheduler) {
         return ExecutionCoordinator.<CommandSender>builder()
                 .executor(scheduler)
                 .build();

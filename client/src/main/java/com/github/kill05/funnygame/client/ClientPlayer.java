@@ -5,6 +5,7 @@ import com.github.kill05.funnygame.commands.CommandSender;
 import com.github.kill05.funnygame.component.Component;
 import com.github.kill05.funnygame.packet.ClientChatMessagePacket;
 import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.exception.NoSuchCommandException;
 import org.jetbrains.annotations.NotNull;
 
 public class ClientPlayer extends Player {
@@ -59,12 +60,15 @@ public class ClientPlayer extends Player {
             input = "/" + input;
         }
 
-        onChatMessageSent(input);
+        CommandManager<CommandSender> manager = client.getCommandManager();
+        try {
+            // Try to execute client command
+            manager.commandExecutor().executeCommand(this, input);
+        } catch (NoSuchCommandException e) {
+            // If the command does not exist, execute the command on the server
+            onChatMessageSent(input);
+        }
     }
 
-    @Override
-    public CommandManager<CommandSender> getCommandManager() {
-        return null;
-    }
 
 }

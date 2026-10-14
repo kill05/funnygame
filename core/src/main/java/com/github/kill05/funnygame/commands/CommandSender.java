@@ -1,7 +1,6 @@
 package com.github.kill05.funnygame.commands;
 
 import com.github.kill05.funnygame.component.Component;
-import org.incendo.cloud.CommandManager;
 import org.jetbrains.annotations.NotNull;
 
 public interface CommandSender {
@@ -24,15 +23,6 @@ public interface CommandSender {
 
     boolean hasPermission(@NotNull String permission);
 
-    CommandManager<CommandSender> getCommandManager();
-
-    default void executeCommand(@NotNull String input) {
-        if (input.startsWith("/")) {
-            input = input.substring(1);
-        }
-
-        CommandManager<CommandSender> manager = getCommandManager();
-        manager.commandExecutor().executeCommand(this, input);
-    }
+    void executeCommand(@NotNull String input);
 
 }
