@@ -89,6 +89,12 @@ public abstract class GameTerminal implements Closeable {
 
         try {
             input = reader.readLine("> ");
+        } catch (IllegalStateException e) {
+            if (e.getMessage().equals("Terminal has been closed")) {
+                return ""; // Ignore and exit
+            }
+
+            throw e;
         } catch (UserInterruptException e) {
             handleInterruptSignal();
             return "";
