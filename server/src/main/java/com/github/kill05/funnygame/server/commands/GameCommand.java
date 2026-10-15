@@ -3,6 +3,7 @@ package com.github.kill05.funnygame.server.commands;
 import com.github.kill05.funnygame.commands.CommandSender;
 import com.github.kill05.funnygame.component.ComponentBuilder;
 import com.github.kill05.funnygame.component.TextColor;
+import com.github.kill05.funnygame.player.Player;
 import com.github.kill05.funnygame.server.GameServer;
 import com.github.kill05.funnygame.server.ServerPlayer;
 import com.github.kill05.funnygame.server.commands.parsers.GameParser;
@@ -11,6 +12,7 @@ import com.github.kill05.funnygame.server.game.Game;
 import com.github.kill05.funnygame.server.game.GameController;
 import com.github.kill05.funnygame.server.game.GameType;
 import org.incendo.cloud.key.CloudKey;
+import org.incendo.cloud.parser.flag.CommandFlag;
 import org.incendo.cloud.parser.standard.IntegerParser;
 import org.jetbrains.annotations.NotNull;
 
@@ -50,25 +52,33 @@ public class GameCommand extends ServerCommand {
         CloudKey<GameType> gameTypeKey = CloudKey.of("type", GameType.class);
         CloudKey<Integer> pageKey = CloudKey.of("page", Integer.class);
 
+        CommandFlag<Void> autojoinFlag = CommandFlag.builder("autojoin")
+                .withAliases("j")
+                .build();
+
         register(builder
-                .senderType(ServerPlayer.class)
                 .literal("start")
                 .required(gameTypeKey, GameTypeParser.parser())
+                .flag(autojoinFlag)
                 .handler(ctx -> {
-                    ServerPlayer sender = ctx.sender();
+                    CommandSender sender = ctx.sender();
                     GameController controller = server.getGameController();
                     GameType type = ctx.get(gameTypeKey);
 
                     Game game = controller.startGame(type);
+
+                    if (sender instanceof Player player && ctx.flags().contains(autojoinFlag)) {
+                        game.addPlayer(player.getUsername());
+                    }
+
                     sender.sendMessage(success(String.format("Created new %s game. Type /game join %s to join.", type.typeId(), game.id())));
                 }));
 
         register(builder
-                .senderType(ServerPlayer.class)
                 .literal("stop")
                 .required(gameKey, GameParser.parser(server, true, true))
                 .handler(ctx -> {
-                    ServerPlayer sender = ctx.sender();
+                    CommandSender sender = ctx.sender();
                     GameController controller = server.getGameController();
                     Game game = ctx.get(gameKey);
 
