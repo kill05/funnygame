@@ -28,6 +28,10 @@ public class ServerTerminal extends GameTerminal {
                     String input = requestInputAndWait();
                     sender.executeCommand(input);
                 } catch (Exception e) {
+                    if (e instanceof IllegalStateException && e.getMessage().equals("Terminal has been closed")) {
+                        break; // Ignore and stop the while loop
+                    }
+
                     log.warn("Failed to handle console input.", e);
                 }
             }
