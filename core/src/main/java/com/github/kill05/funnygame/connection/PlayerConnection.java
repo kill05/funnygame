@@ -1,6 +1,6 @@
 package com.github.kill05.funnygame.connection;
 
-import com.github.kill05.funnygame.Player;
+import com.github.kill05.funnygame.player.Player;
 import com.github.kill05.funnygame.packet.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

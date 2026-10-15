@@ -1,9 +1,9 @@
 package com.github.kill05.funnygame.server.commands;
 
-import com.github.kill05.funnygame.Player;
+import com.github.kill05.funnygame.player.Player;
 import com.github.kill05.funnygame.connection.PlayerConnection;
 import com.github.kill05.funnygame.commands.CommandSender;
-import com.github.kill05.funnygame.server.Server;
+import com.github.kill05.funnygame.server.GameServer;
 import com.github.kill05.funnygame.server.connection.ServerConnection;
 import com.github.kill05.funnygame.server.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -16,13 +16,13 @@ import static com.github.kill05.funnygame.Unicode.CIRCLE;
 
 public class ListCommand extends ServerCommand {
 
-    public ListCommand(@NotNull Server server) {
+    public ListCommand(@NotNull GameServer server) {
         super(server, "list", "players");
 
         register(builder
                 .handler(ctx -> {
                     ServerConnection connection = server.getConnection();
-                    Map<PlayerConnection, ServerPlayer> players = connection.getOnlinePlayers();
+                    Map<PlayerConnection, ServerPlayer> players = connection.getConnectedPlayerMap();
 
                     CommandSender sender = ctx.sender();
                     sender.sendMessage("Online players: " + GREEN + players.size() + RESET);

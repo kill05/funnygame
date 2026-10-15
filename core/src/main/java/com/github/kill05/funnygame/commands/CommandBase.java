@@ -4,18 +4,17 @@ import org.incendo.cloud.Command;
 import org.incendo.cloud.CommandManager;
 import org.jetbrains.annotations.NotNull;
 
-public class GameCommand {
+public class CommandBase {
 
     protected final Command.Builder<CommandSender> builder;
     private final @NotNull CommandManager<CommandSender> manager;
 
-    public GameCommand(@NotNull CommandManager<CommandSender> manager, String name, String... aliases) {
+    public CommandBase(@NotNull CommandManager<CommandSender> manager, String name, String... aliases) {
         this.manager = manager;
-        this.builder = manager.commandBuilder(name, aliases)
-                .permission("game." + name);
+        this.builder = manager.commandBuilder(name, aliases).permission("game." + name);
     }
 
-    public void register(@NotNull Command.Builder<CommandSender> builder) {
+    public void register(@NotNull Command.Builder<? extends CommandSender> builder) {
         manager.command(builder.build());
     }
 

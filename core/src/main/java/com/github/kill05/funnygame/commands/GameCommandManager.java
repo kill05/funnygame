@@ -1,12 +1,13 @@
 package com.github.kill05.funnygame.commands;
 
-import com.github.kill05.funnygame.component.TextColor;
+import com.github.kill05.funnygame.player.Player;
 import com.github.kill05.funnygame.scheduler.GameScheduler;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.caption.Caption;
 import org.incendo.cloud.caption.CaptionVariable;
 import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.exception.InvalidCommandSenderException;
 import org.incendo.cloud.exception.NoSuchCommandException;
 import org.incendo.cloud.exception.handling.ExceptionController;
 import org.incendo.cloud.execution.ExecutionCoordinator;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static com.github.kill05.funnygame.Messages.error;
 import static com.github.kill05.funnygame.component.Component.text;
 
 public class GameCommandManager extends CommandManager<CommandSender> {
@@ -56,9 +58,20 @@ public class GameCommandManager extends CommandManager<CommandSender> {
             CommandContext<CommandSender> ctx = ectx.context();
 
             ctx.sender().sendMessage(text().append(
-                    text("Unknown command: ", TextColor.RED),
+                    error("Unknown command: "),
                     text(ectx.exception().suppliedCommand())
             ).build());
+        });
+
+        controller.registerHandler(InvalidCommandSenderException.class, ectx -> {
+            CommandContext<CommandSender> ctx = ectx.context();
+
+            if (ctx.sender() instanceof Player) {
+                ctx.sender().sendMessage(error("This command cannot be executed by a player."));
+                return;
+            }
+
+            ctx.sender().sendMessage(error("This command cannot be executed by console."));
         });
     }
 

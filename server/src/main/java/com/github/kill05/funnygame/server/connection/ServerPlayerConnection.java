@@ -1,6 +1,6 @@
 package com.github.kill05.funnygame.server.connection;
 
-import com.github.kill05.funnygame.Player;
+import com.github.kill05.funnygame.player.Player;
 import com.github.kill05.funnygame.component.Component;
 import com.github.kill05.funnygame.component.TextColor;
 import com.github.kill05.funnygame.connection.NioEventLoop;

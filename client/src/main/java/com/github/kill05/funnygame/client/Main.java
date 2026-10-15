@@ -10,10 +10,10 @@ public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
     static void main() {
-        Client client;
+        GameClient client;
 
         try {
-            client = new Client();
+            client = new GameClient();
         } catch (IOException e) {
             log.error("Failed to initialize client.", e);
             return;

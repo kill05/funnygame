@@ -17,10 +17,10 @@ import static com.github.kill05.funnygame.component.Component.text;
 
 public class ClientTerminal extends GameTerminal implements Closeable {
 
-    private final Client client;
+    private final GameClient client;
     private Component statusMessage;
 
-    public ClientTerminal(Client client) throws IOException {
+    public ClientTerminal(GameClient client) throws IOException {
         this.client = client;
 
         // Change attributes

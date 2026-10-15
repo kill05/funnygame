@@ -1,18 +1,19 @@
 package com.github.kill05.funnygame.client;
 
-import com.github.kill05.funnygame.Player;
+import com.github.kill05.funnygame.CommandUtils;
 import com.github.kill05.funnygame.commands.CommandSender;
 import com.github.kill05.funnygame.component.Component;
 import com.github.kill05.funnygame.packet.ClientChatMessagePacket;
+import com.github.kill05.funnygame.player.Player;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.exception.NoSuchCommandException;
 import org.jetbrains.annotations.NotNull;
 
 public class ClientPlayer extends Player {
 
-    private final Client client;
+    private final GameClient client;
 
-    public ClientPlayer(@NotNull Client client, @NotNull String username, @NotNull ClientPlayerConnection connection) {
+    public ClientPlayer(@NotNull GameClient client, @NotNull String username, @NotNull ClientPlayerConnection connection) {
         super(username, connection);
         this.client = client;
     }
@@ -56,17 +57,15 @@ public class ClientPlayer extends Player {
 
     @Override
     public void executeCommand(@NotNull String input) {
-        if (!input.startsWith("/")) {
-            input = "/" + input;
-        }
-
+        input = CommandUtils.removeSlash(input);
         CommandManager<CommandSender> manager = client.getCommandManager();
+
         try {
             // Try to execute client command
             manager.commandExecutor().executeCommand(this, input);
         } catch (NoSuchCommandException e) {
             // If the command does not exist, execute the command on the server
-            onChatMessageSent(input);
+            onChatMessageSent(CommandUtils.appendSlash(input));
         }
     }
 

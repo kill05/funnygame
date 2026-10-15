@@ -1,14 +1,17 @@
 package com.github.kill05.funnygame.server;
 
 import com.github.kill05.funnygame.GameConstants;
-import com.github.kill05.funnygame.Player;
+import com.github.kill05.funnygame.player.Player;
+import com.github.kill05.funnygame.player.PlayerList;
 import com.github.kill05.funnygame.scheduler.GameScheduler;
 import com.github.kill05.funnygame.commands.CommandSender;
 import com.github.kill05.funnygame.commands.GameCommandManager;
 import com.github.kill05.funnygame.component.Component;
+import com.github.kill05.funnygame.server.commands.GameCommand;
 import com.github.kill05.funnygame.server.commands.ListCommand;
 import com.github.kill05.funnygame.server.commands.StopCommand;
 import com.github.kill05.funnygame.server.connection.ServerConnection;
+import com.github.kill05.funnygame.server.game.GameController;
 import org.incendo.cloud.CommandManager;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -16,25 +19,28 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-public class Server {
+public class GameServer {
 
-    private static final Logger log = LoggerFactory.getLogger(Server.class);
+    private static final Logger log = LoggerFactory.getLogger(GameServer.class);
 
     private final ServerConnection connection;
     private final GameScheduler scheduler;
+    private final GameController gameController;
     private final CommandManager<CommandSender> commandManager;
     private final ServerTerminal terminal;
     private volatile boolean running;
     private volatile boolean stop; // Set to true to start the stopping sequence, not when the server HAS stopped
 
-    public Server() throws IOException {
+    public GameServer() throws IOException {
         this.connection = new ServerConnection(this);
         this.scheduler = new GameScheduler(GameConstants.TARGET_TPS, this::tick);
+        this.gameController = new GameController(this);
         this.commandManager = new GameCommandManager(scheduler);
         this.terminal = new ServerTerminal(this);
         this.running = false;
         this.stop = false;
 
+        // Stop the server gracefully on shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             if (!running) {
                 return;
@@ -58,6 +64,7 @@ public class Server {
             // Starting sequence
             connection.start();
             scheduler.start();
+            gameController.start();
 
             running = true;
             terminal.start();
@@ -81,9 +88,10 @@ public class Server {
 
         try {
             terminal.close();
+            gameController.close();
             scheduler.close();
             connection.close();
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to stop server.", e);
             return;
         }
@@ -119,6 +127,7 @@ public class Server {
     private void registerCommands() {
         new ListCommand(this);
         new StopCommand(this);
+        new GameCommand(this);
     }
 
 
@@ -127,7 +136,7 @@ public class Server {
     }
 
     public void broadcast(@NotNull Component message) {
-        for (Player player : connection.getOnlinePlayers().values()) {
+        for (Player player : connection.getConnectedPlayerMap().values()) {
             player.sendMessage(message);
         }
 
@@ -135,12 +144,30 @@ public class Server {
     }
 
 
+    /**
+     * Throws an exception if the method is not called from the ticking thread.
+     */
+    public void assertTickingThread() throws IllegalCallerException {
+        if (Thread.currentThread() != scheduler.getTickingThread()) {
+            throw new IllegalCallerException("This method must be called from the ticking thread.");
+        }
+    }
+
+
     public ServerConnection getConnection() {
+        return connection;
+    }
+
+    public PlayerList getPlayerList() {
         return connection;
     }
 
     public CommandManager<CommandSender> getCommandManager() {
         return commandManager;
+    }
+
+    public GameController getGameController() {
+        return gameController;
     }
 
     public long getCurrentTick() {

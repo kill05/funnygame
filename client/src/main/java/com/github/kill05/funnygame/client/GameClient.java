@@ -25,9 +25,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import static com.github.kill05.funnygame.component.Component.text;
 import static com.github.kill05.funnygame.component.TextColor.RED;
 
-public class Client {
+public class GameClient {
 
-    private static final Logger log = LoggerFactory.getLogger(Client.class);
+    private static final Logger log = LoggerFactory.getLogger(GameClient.class);
 
     private final NioEventLoop eventLoop;
     private final GameScheduler scheduler;
@@ -38,7 +38,7 @@ public class Client {
     private volatile boolean joining; // true when socket connected but waiting for ConnectionAcceptedPacket
 
 
-    public Client() throws IOException {
+    public GameClient() throws IOException {
         this.player = null;
         this.joining = false;
         this.eventLoop = new NioEventLoop();

@@ -1,13 +1,14 @@
 package com.github.kill05.funnygame.server.connection;
 
-import com.github.kill05.funnygame.Player;
+import com.github.kill05.funnygame.player.Player;
 import com.github.kill05.funnygame.connection.ConnectionConstants;
 import com.github.kill05.funnygame.connection.NioEventLoop;
 import com.github.kill05.funnygame.connection.PlayerConnection;
 import com.github.kill05.funnygame.packet.ConnectionAcceptedPacket;
 import com.github.kill05.funnygame.packet.ConnectionRequestPacket;
 import com.github.kill05.funnygame.packet.DisconnectPacket;
-import com.github.kill05.funnygame.server.Server;
+import com.github.kill05.funnygame.player.PlayerList;
+import com.github.kill05.funnygame.server.GameServer;
 import com.github.kill05.funnygame.server.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Blocking;
@@ -27,21 +28,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.github.kill05.funnygame.connection.ConnectionConstants.PROTOCOL_VERSION;
 
-public class ServerConnection implements Closeable {
+public class ServerConnection implements Closeable, PlayerList {
 
     private static final Logger log = LoggerFactory.getLogger(ServerConnection.class);
-    private final Server server;
+    private final GameServer server;
     private final ServerSocketChannel channel;
     private final NioEventLoop eventLoop;
-    private final Map<PlayerConnection, ServerPlayer> players;
+    private final Map<PlayerConnection, ServerPlayer> onlinePlayerMap;
+    private final Collection<Player> immutableOnlinePlayerView;
     private final Set<PlayerConnection> awaitingConnections;
 
-    public ServerConnection(@NotNull Server server) throws IOException {
+    public ServerConnection(@NotNull GameServer server) throws IOException {
         this.server = server;
-        this.players = new ConcurrentHashMap<>();
+        this.onlinePlayerMap = new ConcurrentHashMap<>();
+        this.immutableOnlinePlayerView = Collections.unmodifiableCollection(onlinePlayerMap.values());
         this.awaitingConnections = Collections.synchronizedSet(new HashSet<>());
         this.channel = ServerSocketChannel.open();
-
         this.eventLoop = new NioEventLoop() {
             @Override
             public PlayerConnection accept() throws IOException {
@@ -71,7 +73,7 @@ public class ServerConnection implements Closeable {
     }
 
     public void tick() {
-        for (PlayerConnection connection : players.keySet()) {
+        for (PlayerConnection connection : onlinePlayerMap.keySet()) {
             tickConnection(connection);
         }
 
@@ -142,7 +144,7 @@ public class ServerConnection implements Closeable {
 
             // Create player and add it to map
             player = new ServerPlayer(server, username, connection);
-            players.put(connection, player);
+            onlinePlayerMap.put(connection, player);
         }
 
         connection.sendPacket(new ConnectionAcceptedPacket());
@@ -155,12 +157,12 @@ public class ServerConnection implements Closeable {
             handleDisconnect(connection, message, true);
         }
 
-        for (PlayerConnection connection : players.keySet()) {
+        for (PlayerConnection connection : onlinePlayerMap.keySet()) {
             handleDisconnect(connection, message, true);
         }
 
         awaitingConnections.clear();
-        players.clear();
+        onlinePlayerMap.clear();
     }
 
 
@@ -168,7 +170,7 @@ public class ServerConnection implements Closeable {
     public void disconnectPlayer(@NotNull PlayerConnection connection, @Nullable String message, boolean sendPacket) {
         handleDisconnect(connection, message, sendPacket);
 
-        ServerPlayer player = players.remove(connection);
+        ServerPlayer player = onlinePlayerMap.remove(connection);
         awaitingConnections.remove(connection);
 
         if (player != null) {
@@ -192,12 +194,12 @@ public class ServerConnection implements Closeable {
 
 
     public Player getOnlinePlayer(@NotNull PlayerConnection connection) {
-        return players.get(connection);
+        return onlinePlayerMap.get(connection);
     }
 
-    @Nullable
-    public ServerPlayer getOnlinePlayer(@NotNull String username) {
-        for (ServerPlayer player : players.values()) {
+    @Override
+    public @Nullable ServerPlayer getOnlinePlayer(@NotNull String username) {
+        for (ServerPlayer player : onlinePlayerMap.values()) {
             if (username.equals(player.getUsername())) {
                 return player;
             }
@@ -206,19 +208,8 @@ public class ServerConnection implements Closeable {
         return null;
     }
 
-    @Nullable
-    public ServerPlayer getOnlinePlayer(@NotNull UUID uuid) {
-        for (ServerPlayer player : players.values()) {
-            if (uuid.equals(player.getUuid())) {
-                return player;
-            }
-        }
 
-        return null;
-    }
-
-
-    public Server getServer() {
+    public GameServer getServer() {
         return server;
     }
 
@@ -226,12 +217,17 @@ public class ServerConnection implements Closeable {
         return channel;
     }
 
-    public Map<PlayerConnection, ServerPlayer> getOnlinePlayers() {
-        return players;
+    public Map<PlayerConnection, ServerPlayer> getConnectedPlayerMap() {
+        return onlinePlayerMap;
     }
 
     public Set<PlayerConnection> getAwaitingConnections() {
         return awaitingConnections;
+    }
+
+    @Override
+    public @NotNull Collection<Player> getOnlinePlayers() {
+        return immutableOnlinePlayerView;
     }
 
     public NioEventLoop getEventLoop() {

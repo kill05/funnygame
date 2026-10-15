@@ -1,6 +1,6 @@
 package com.github.kill05.funnygame.client;
 
-import com.github.kill05.funnygame.Player;
+import com.github.kill05.funnygame.player.Player;
 import com.github.kill05.funnygame.connection.NioEventLoop;
 import com.github.kill05.funnygame.connection.PlayerConnection;
 import com.github.kill05.funnygame.packet.*;
@@ -15,10 +15,10 @@ import static com.github.kill05.funnygame.connection.ConnectionConstants.REQUEST
 
 public class ClientPlayerConnection extends PlayerConnection {
 
-    private final Client client;
+    private final GameClient client;
     private long requestSentTime; // If negative there is no pending request
 
-    public ClientPlayerConnection(@NotNull Client client, @NotNull SocketChannel socket) {
+    public ClientPlayerConnection(@NotNull GameClient client, @NotNull SocketChannel socket) {
         super(socket);
         this.client = client;
     }

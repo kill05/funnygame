@@ -1,7 +1,10 @@
 package com.github.kill05.funnygame.server.game;
 
+import com.github.kill05.funnygame.StringUtils;
+import com.github.kill05.funnygame.scheduler.GameScheduler;
 import com.github.kill05.funnygame.server.ServerPlayer;
 import com.github.kill05.funnygame.server.connection.ServerConnection;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -9,32 +12,59 @@ import java.util.*;
 
 public abstract class Game {
 
+    private static final int MAX_ID_ATTEMPTS = 100;
+
     private final GameController controller;
-    private final UUID uuid;
-    private final Set<UUID> players;
-    private final Set<UUID> immutablePlayers;
+    private final String id;
+    private final Set<String> players;
+    private final Set<String> immutablePlayers;
+    private boolean running;
 
     protected Game(GameController controller) {
         this.controller = controller;
-        this.uuid = UUID.randomUUID();
+        this.id = generateId(controller);
         this.players = new HashSet<>();
         this.immutablePlayers = Collections.unmodifiableSet(players);
+        this.running = false;
+    }
+
+    private static String generateId(GameController controller) {
+        for (int i = 0; i < MAX_ID_ATTEMPTS; i++) {
+            String id = StringUtils.generateAlphanumeric(5);
+
+            if (controller.getGame(id) != null) {
+                continue; // try again
+            }
+
+            return id;
+        }
+
+        throw new RuntimeException("Max attempts reached.");
     }
 
 
+    /**
+     * Returns the display name of this game
+     *
+     * @return the display name
+     */
+    public abstract String getDisplayName();
+
+    @ApiStatus.Internal
     public void onPlayerReconnect(@NotNull ServerPlayer player) {
 
     }
 
+    @ApiStatus.Internal
     public void onPlayerDisconnect(@NotNull ServerPlayer player) {
 
     }
 
-    protected void onPlayerAdd(@Nullable ServerPlayer player) {
+    protected void onPlayerAdd(@NotNull String username, @Nullable ServerPlayer player) {
 
     }
 
-    protected void onPlayerRemove(@Nullable ServerPlayer player) {
+    protected void onPlayerRemove(@NotNull String username, @Nullable ServerPlayer player) {
 
     }
 
@@ -46,29 +76,51 @@ public abstract class Game {
 
     }
 
+
+    @ApiStatus.Internal
     public void tick() {
 
     }
 
 
-    public void addPlayer(@NotNull UUID uuid) {
-        synchronized (players) {
-            players.add(uuid);
-
-            ServerConnection conn = getServerConnection();
-            ServerPlayer onlinePlayer = conn.getOnlinePlayer(uuid);
-            onPlayerAdd(onlinePlayer);
-        }
+    @ApiStatus.Internal
+    public synchronized void start_unsafe() {
+        getScheduler().run(this::onStart);
+        running = true;
     }
 
+    @ApiStatus.Internal
+    public synchronized void stop_unsafe() {
+        running = false;
+        getScheduler().run(() -> {
+            for (String player : players) {
+                removePlayer(player);
+            }
 
-    public void removePlayer(@NotNull UUID uuid) {
-        synchronized (players) {
-            ServerConnection conn = getServerConnection();
-            ServerPlayer player = conn.getOnlinePlayer(uuid);
+            onStop();
+        });
+    }
 
-            players.remove(uuid);
-        }
+    public synchronized boolean addPlayer(@NotNull String username) {
+        ServerConnection conn = getServerConnection();
+        ServerPlayer onlinePlayer = conn.getOnlinePlayer(username);
+
+        getScheduler().run(() -> {
+            onPlayerAdd(username, onlinePlayer);
+        });
+
+        return players.add(username);
+    }
+
+    public synchronized boolean removePlayer(@NotNull String username) {
+        ServerConnection conn = getServerConnection();
+        ServerPlayer player = conn.getOnlinePlayer(username);
+
+        getScheduler().run(() -> {
+            onPlayerRemove(username, player);
+        });
+
+        return players.remove(username);
     }
 
 
@@ -77,7 +129,7 @@ public abstract class Game {
             @Override
             public @NotNull Iterator<ServerPlayer> iterator() {
                 return new Iterator<>() {
-                    final Iterator<UUID> iterator = immutablePlayers.iterator();
+                    final Iterator<String> iterator = immutablePlayers.iterator();
                     ServerPlayer next;
 
                     @Override
@@ -86,7 +138,7 @@ public abstract class Game {
                         ServerPlayer player = null;
 
                         while (iterator.hasNext() && player == null) {
-                            UUID next = iterator.next();
+                            String next = iterator.next();
                             player = connection.getOnlinePlayer(next);
                         }
 
@@ -107,27 +159,36 @@ public abstract class Game {
         };
     }
 
+
+    private GameScheduler getScheduler() {
+        return controller.getServer().getScheduler();
+    }
+
     private ServerConnection getServerConnection() {
         return controller.getServer().getConnection();
     }
 
-    public Set<UUID> getPlayers() {
+
+    public Set<String> getPlayers() {
         return immutablePlayers;
     }
 
-    public UUID getUuid() {
-        return uuid;
+    public String id() {
+        return id;
     }
 
+    public synchronized boolean isRunning() {
+        return running;
+    }
 
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof Game game)) return false;
-        return Objects.equals(uuid, game.uuid);
+        return Objects.equals(id, game.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(uuid);
+        return Objects.hashCode(id);
     }
 }

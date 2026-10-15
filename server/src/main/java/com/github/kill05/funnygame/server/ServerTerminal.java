@@ -10,10 +10,10 @@ import java.io.IOException;
 public class ServerTerminal extends GameTerminal {
 
     private static final Logger log = LoggerFactory.getLogger(ServerTerminal.class);
-    private final Server server;
+    private final GameServer server;
     private final ConsoleCommandSender sender;
 
-    public ServerTerminal(Server server) throws IOException {
+    public ServerTerminal(GameServer server) throws IOException {
         this.server = server;
         this.sender = new ConsoleCommandSender(server, this);
     }
