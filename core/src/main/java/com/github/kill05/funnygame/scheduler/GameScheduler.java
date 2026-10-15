@@ -96,6 +96,7 @@ public class GameScheduler implements Closeable, Executor {
     public synchronized ScheduledTask run(@NotNull Runnable runnable) {
         if (Thread.currentThread() == getTickingThread()) {
             runnable.run();
+            return ScheduledTask.NOOP;
         }
 
         return scheduleAtTick_unsafe(runnable, currentTick);
