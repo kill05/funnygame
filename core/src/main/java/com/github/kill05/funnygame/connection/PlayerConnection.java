@@ -242,7 +242,7 @@ public abstract class PlayerConnection {
                     throw new IOException(String.format("Incomplete packet read (expected: %d, read: %d)", length, deserializedAmount));
                 }
 
-                boolean result = packetInQueue.add(packet);
+                boolean result = packetInQueue.offer(packet);
                 if (!result) {
                     packetInQueue.clear();
                     disconnect("You are sending too many packets.");

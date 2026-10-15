@@ -27,6 +27,10 @@ public class ClientPlayer extends Player {
      * @param message the message
      */
     public void onChatMessageSent(@NotNull String message) {
+        if (!client.isConnected()) {
+            return;
+        }
+
         if (message.isEmpty()) {
             return;
         }
