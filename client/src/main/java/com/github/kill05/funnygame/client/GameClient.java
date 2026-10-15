@@ -133,7 +133,7 @@ public class GameClient {
 
         while (address == null) {
             sendMessage("Insert server address (or type '/exit' to exit):");
-            String next = terminal.requestInputAndWait();
+            String next = terminal.requestInput().join();
 
             if (next.isEmpty() && !running) {
                 return null;

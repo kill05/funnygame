@@ -26,7 +26,7 @@ public abstract class GameTerminal implements Closeable {
     protected final LineReader reader;
     protected final PrintAboveWriter writer;
     protected final ExecutorService executor;
-
+    protected CompletableFuture<String> currentInputRequest;
 
     public GameTerminal() throws IOException {
         this.terminal = TerminalBuilder.builder().system(true).build();
@@ -81,16 +81,29 @@ public abstract class GameTerminal implements Closeable {
      * @return the input read from console
      */
     public synchronized CompletableFuture<String> requestInput() {
-        return CompletableFuture.supplyAsync(this::requestInputAndWait, executor);
+        if (currentInputRequest != null) {
+            return currentInputRequest;
+        }
+
+        currentInputRequest = CompletableFuture.supplyAsync(() -> {
+            String s = requestInputAndWait();
+
+            synchronized (GameTerminal.this) {
+                currentInputRequest = null;
+            }
+
+            return s;
+        }, executor);
+        return currentInputRequest;
     }
 
-    public String requestInputAndWait() {
+    protected String requestInputAndWait() {
         String input;
 
         try {
             input = reader.readLine("> ");
         } catch (IllegalStateException e) {
-            if (e.getMessage().equals("Terminal has been closed")) {
+            if ("Terminal has been closed".equals(e.getMessage())) {
                 return ""; // Ignore and exit
             }
 
